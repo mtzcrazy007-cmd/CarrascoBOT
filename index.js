@@ -16,22 +16,24 @@ const client = new Client({
 // --- CONFIGURAÇÕES ---
 const CANAL_PROIBIDO = "1499824373861716148";
 const CARGO_IMUNE = "1490326565752668353";
-const TEMPO_CASTIGO = 7 * 24 * 60 * 60 * 1000; // 7 dias em milissegundos
+const TEMPO_CASTIGO = 7 * 24 * 60 * 60 * 1000; // 7 dias
 
 // BOT ONLINE
-client.once("ready", () => {
+client.once("clientReady", () => {
   console.log(`✅ Bot online como ${client.user.tag}`);
 });
 
 // BOAS-VINDAS
 client.on("guildMemberAdd", async (member) => {
-  await member.send(`🔥 **SEJA MUITO BEM VINDO AO Theo Carrasco** 🔥`)
-    .catch(() => console.log(`DM fechada para: ${member.user.tag}`));
+  try {
+    await member.send(`🔥 **SEJA MUITO BEM VINDO AO Theo Carrasco** 🔥`);
+  } catch {
+    console.log(`DM fechada para: ${member.user.tag}`);
+  }
 });
 
 // COMANDOS E MODERAÇÃO
 client.on("messageCreate", async (message) => {
-  // Ignora bots, mensagens fora de servidores ou se o membro não puder ser carregado
   if (message.author.bot || !message.guild || !message.member) return;
 
   const msg = message.content.toLowerCase();
@@ -44,7 +46,7 @@ client.on("messageCreate", async (message) => {
   // --- COMANDO LIMPAR CHAT ---
   if (msg.startsWith("!limpar")) {
     if (!message.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-      return message.reply("Você não tem permissão para usar este comando.");
+      return message.reply("❌ Você não tem permissão para usar este comando.");
     }
 
     const args = message.content.split(" ");
@@ -56,40 +58,43 @@ client.on("messageCreate", async (message) => {
 
     try {
       const deleted = await message.channel.bulkDelete(quantidade, true);
-      const aviso = await message.channel.send(`扫 Apaguei **${deleted.size}** mensagens.`);
+      const aviso = await message.channel.send(`🧹 Apaguei **${deleted.size}** mensagens.`);
       setTimeout(() => aviso.delete().catch(() => {}), 3000);
     } catch (err) {
       console.error("Erro ao limpar chat:", err);
-      return message.reply("Houve um erro ao tentar apagar mensagens neste canal.");
+      return message.reply("❌ Erro ao apagar mensagens.");
     }
   }
 
-  // --- LÓGICA DO CANAL PROIBIDO ---
+  // --- CANAL PROIBIDO ---
   if (message.channel.id === CANAL_PROIBIDO) {
-    // 1. Ignora se for Admin ou tiver o cargo imune
+
+    // Ignora admins ou cargo imune
     if (
-      message.member.roles.cache.has(CARGO_IMUNE) || 
+      message.member.roles.cache.has(CARGO_IMUNE) ||
       message.member.permissions.has(PermissionFlagsBits.Administrator)
     ) {
-      return; 
+      return;
     }
 
     try {
-      // 2. Tenta deletar a mensagem
+      // Deleta a mensagem
       if (message.deletable) {
         await message.delete();
       }
 
-      // 3. Tenta aplicar o castigo (Timeout)
+      // Aplica punição
       if (message.member.moderatable) {
-        await message.member.timeout(TEMPO_CASTIGO, "Enviou mensagem em canal proibido");
+        await message.member.timeout(
+          TEMPO_CASTIGO,
+          "Enviou mensagem em canal proibido"
+        );
 
-        const aviso = await message.channel.send(
+        // MENSAGEM FICA NO CANAL
+        await message.channel.send(
           `🚫 ${message.author} foi punido por 7 dias por falar aqui.`
         );
-        
-        // Apaga o aviso do bot após 5 segundos
-        setTimeout(() => aviso.delete().catch(() => {}), 5000);
+
       } else {
         console.log(`Hierarquia insuficiente para punir: ${message.author.tag}`);
       }
@@ -100,5 +105,5 @@ client.on("messageCreate", async (message) => {
   }
 });
 
-// LOGIN (Certifique-se de que o TOKEN está no seu arquivo .env ou substitua pela string)
+// LOGIN
 client.login(process.env.TOKEN);
